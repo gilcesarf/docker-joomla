@@ -1,12 +1,17 @@
 #
-# NOTE: THIS DOCKERFILE IS GENERATED VIA "apply-templates.sh"
+# Variante Helix Ultimate Quickstart: mantida manualmente (não é gerada por apply-templates.sh).
+# Preparação alinhada a: https://www.joomshaper.com/documentation/helix-framework/helix-ultimate-quckstart-installation
 #
-# PLEASE DO NOT EDIT IT DIRECTLY.
+# Build con docker compose: variables HELIX_QUICKSTART_URL (y opcional HELIX_QUICKSTART_SHA512) en .env junto a docker-compose.yml
 #
 
 # from https://downloads.joomla.org/technical-requirements
 FROM php:8.3-apache
 LABEL maintainer="Llewellyn van der Merwe <llewellyn.van-der-merwe@community.joomla.org> (@Llewellynvdm), Harald Leithner <harald.leithner@community.joomla.org> (@HLeithner)"
+LABEL org.opencontainers.image.title="Joomla Helix Ultimate Quickstart (php 8.3 apache)"
+LABEL org.opencontainers.image.version="5.4-php8.3"
+
+WORKDIR /var/www/html
 
 # Disable remote database security requirements.
 ENV JOOMLA_INSTALLATION_DISABLE_LOCALHOST_CHECK=1
@@ -15,8 +20,8 @@ RUN set -eux; \
 	apt-get install -y --no-install-recommends \
 # Ghostscript is required for rendering PDF previews
 		ghostscript \
-# Needed for the zst joomla package
-		zstd \
+# Paquete quickstart Helix (helixultimate_quickstart_x.x.zip)
+		unzip \
 	; \
 	rm -rf /var/lib/apt/lists/*
 
@@ -150,17 +155,46 @@ RUN set -eux; \
 
 VOLUME /var/www/html
 
-# Define Joomla version and expected SHA512 signature
-ENV JOOMLA_VERSION 5.4.4
-ENV JOOMLA_SHA512 ec838f01572dcd67030cf2e848c89f80b381631882a5ec68497b372329e33837ebae84d95c1a4ca73d72564d260033b061fa21082678c7025641f58661885242
+# Versión de referencia del núcleo Joomla que acompaña al quickstart (solo informativo)
+ENV JOOMLA_VERSION=5.4.4
 
-# Download package and extract to web volume
+# URL del .zip quickstart (descarga desde JoomShaper). Verificación SHA512 opcional.
+ARG HELIX_QUICKSTART_URL
+ARG HELIX_QUICKSTART_SHA512=
+
+# Pasos de preparación del quickstart: descargar, extraer, quitar index.html y configuration.php
+# (equivalente a los puntos 2–3 y 5–7 de la documentación; la BD la crea el entrypoint en el arranque)
 RUN set -ex; \
-	curl -o joomla.tar.zst -SL https://github.com/joomla/joomla-cms/releases/download/5.4.4/Joomla_5.4.4-Stable-Full_Package.tar.zst; \
-	echo "$JOOMLA_SHA512 *joomla.tar.zst" | sha512sum -c -; \
-	mkdir /usr/src/joomla; \
-	tar --zstd -xf joomla.tar.zst -C /usr/src/joomla; \
-	rm joomla.tar.zst; \
+	if [ -z "$HELIX_QUICKSTART_URL" ]; then \
+		echo "Defina HELIX_QUICKSTART_URL ao construir (URL HTTPS do ficheiro helixultimate_quickstart_*.zip)." >&2; \
+		exit 1; \
+	fi; \
+	curl -fSL -o /tmp/quickstart.zip "$HELIX_QUICKSTART_URL"; \
+	if [ -n "$HELIX_QUICKSTART_SHA512" ]; then \
+		echo "$HELIX_QUICKSTART_SHA512 */tmp/quickstart.zip" | sha512sum -c -; \
+	fi; \
+	mkdir -p /usr/src/joomla /tmp/qs; \
+	unzip -q /tmp/quickstart.zip -d /tmp/qs; \
+	rm /tmp/quickstart.zip; \
+	ROOT=""; \
+	if [ -f /tmp/qs/index.php ]; then \
+		ROOT=/tmp/qs; \
+	else \
+		for d in /tmp/qs/*/; do \
+			case "$d" in *__MACOSX*) continue;; esac; \
+			[ -f "${d}index.php" ] || continue; \
+			ROOT="${d%/}"; \
+			break; \
+		done; \
+	fi; \
+	if [ -z "$ROOT" ] || [ ! -f "$ROOT/index.php" ]; then \
+		echo "Não foi possível localizar a raiz web do Joomla no arquivo quickstart." >&2; \
+		exit 1; \
+	fi; \
+	cp -a "$ROOT"/. /usr/src/joomla/; \
+	rm -rf /tmp/qs; \
+	rm -f /usr/src/joomla/index.html; \
+	rm -f /usr/src/joomla/configuration.php; \
 	chown -R www-data:www-data /usr/src/joomla
 
 # Copy init scripts
