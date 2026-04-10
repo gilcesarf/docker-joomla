@@ -12,7 +12,7 @@ services:
     ports:
       - "${MYSQL_PORT:-3306}:3306"
     volumes:
-      - ./database:/var/lib/mysql
+      - ${MYSQL_HOST_DATA_DIR:-./database}:/var/lib/mysql
     networks:
       - joomla-network
     healthcheck:
@@ -46,7 +46,7 @@ services:
     ports:
       - "${JOOMLA_HTTP_PORT:-8080}:80"
     volumes:
-      - ./app:/var/www/html
+      - ${JOOMLA_HOST_APP_DIR:-./app}:/var/www/html
     networks:
       - joomla-network
 

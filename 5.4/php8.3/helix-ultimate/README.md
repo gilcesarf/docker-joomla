@@ -5,7 +5,7 @@ Imagem Docker baseada em `php:8.3-apache` com extensões PHP usuais do Joomla, e
 ## Pré-requisitos
 
 - Docker e Docker Compose (plugin `docker compose`)
-- Ficheiro `.env` nesta pasta com `HELIX_QUICKSTART_URL` definido (obrigatório para o build)
+- Ficheiro `.env` nesta pasta (criar a partir do modelo): `cp .env.example .env` e editar; `HELIX_QUICKSTART_URL` é obrigatório para o build
 
 ## Variáveis de build da imagem
 
@@ -45,7 +45,7 @@ Opcionalmente acrescentar `--build-arg HELIX_QUICKSTART_SHA512=<hash>`.
 
 ## Uso local com Docker Compose
 
-1. Ajustar o `.env` se necessário (URL do quickstart, palavra-passe MySQL, portas `MYSQL_PORT` e `JOOMLA_HTTP_PORT`, nome da base `JOOMLA_DB_NAME`).
+1. Se ainda não existir `.env`: `cp .env.example .env` e ajustar (em especial `MYSQL_ROOT_PASSWORD`; URL do quickstart, portas, `JOOMLA_DB_NAME`, `JOOMLA_HOST_APP_DIR`, `MYSQL_HOST_DATA_DIR` se necessário).
 2. Subir os serviços:
 
 ```bash
@@ -59,10 +59,12 @@ docker compose up -d
 
 | Serviço | Descrição |
 |---------|-----------|
-| `joomla-mysql` | MySQL 8.4; dados persistentes em `./database`. |
-| `joomla-app` | Apache + PHP; ficheiros do site em `./app` (montado em `/var/www/html`). |
+| `joomla-mysql` | MySQL 8.4; dados persistentes na pasta do host definida por `MYSQL_HOST_DATA_DIR` (predefinição `./database`). |
+| `joomla-app` | Apache + PHP; ficheiros do site na pasta do host `JOOMLA_HOST_APP_DIR` (predefinição `./app`), montada em `/var/www/html`. |
 
-Na primeira execução, com `./app` vazio, o *entrypoint* copia o quickstart de `/usr/src/joomla` para `/var/www/html`.
+Na primeira execução, com a pasta da app vazia, o *entrypoint* copia o quickstart de `/usr/src/joomla` para `/var/www/html`.
+
+O `.dockerignore` ignora por defeito `app/` e `database/` para não inflar o contexto de build; se mudares as pastas no `.env`, acrescenta os mesmos caminhos (relativos) ao `.dockerignore`.
 
 ### Parar e remover
 
@@ -80,7 +82,9 @@ docker compose down -v
 
 - `Dockerfile` — construção da imagem e extração do quickstart
 - `docker-compose.yml` — MySQL + aplicação Joomla
-- `.env` — variáveis para build e runtime (não commitar segredos reais em repositórios públicos)
+- `.dockerignore` — exclui do contexto de build `app/`, `database/`, `.env`, `.git`
+- `.env.example` — modelo de variáveis (versionado); copiar para `.env` local
+- `.env` — criado por ti a partir do exemplo; ignorado pelo Git e usado pelo Compose
 
 ## Referências
 

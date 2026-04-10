@@ -1,0 +1,6 @@
+# Volumenes locales por defecto (Compose: JOOMLA_HOST_APP_DIR, MYSQL_HOST_DATA_DIR)
+app/
+database/
+
+.env
+.git/
